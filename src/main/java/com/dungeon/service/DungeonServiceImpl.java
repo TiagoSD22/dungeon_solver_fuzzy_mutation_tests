@@ -9,18 +9,20 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 /**
  * Implementation of DungeonService following hexagonal architecture principles.
  * 
  * This service acts as the application layer, orchestrating the interaction
- * between the domain logic (solver) and the infrastructure layer (controllers).
+ * between the domain logic (solver), the caching layer, and the infrastructure layer (controllers).
  * 
  * Follows SOLID principles:
- * - Single Responsibility: Handles dungeon solving business logic
+ * - Single Responsibility: Handles dungeon solving business logic with caching
  * - Open/Closed: Open for extension through dependency injection
  * - Liskov Substitution: Can be substituted for any DungeonService implementation
  * - Interface Segregation: Implements only necessary service methods
- * - Dependency Inversion: Depends on DungeonSolver abstraction, not concrete implementation
+ * - Dependency Inversion: Depends on DungeonSolver and DungeonCacheService abstractions
  */
 @Service
 public class DungeonServiceImpl implements DungeonService {
@@ -28,15 +30,18 @@ public class DungeonServiceImpl implements DungeonService {
     private static final Logger logger = LoggerFactory.getLogger(DungeonServiceImpl.class);
     
     private final DungeonSolver dungeonSolver;
+    private final DungeonCacheService cacheService;
     
     /**
      * Constructor injection for dependency inversion.
      * 
      * @param dungeonSolver the solver implementation to use
+     * @param cacheService the cache service for storing/retrieving solutions
      */
     @Autowired
-    public DungeonServiceImpl(DungeonSolver dungeonSolver) {
+    public DungeonServiceImpl(DungeonSolver dungeonSolver, DungeonCacheService cacheService) {
         this.dungeonSolver = dungeonSolver;
+        this.cacheService = cacheService;
     }
     
     @Override
@@ -87,15 +92,31 @@ public class DungeonServiceImpl implements DungeonService {
                     dungeonGrid.length > 0 ? dungeonGrid[0].length : 0);
         
         try {
-            // Delegate to the solver
+            // First, check if we have a cached solution
+            Optional<DungeonSolveResult> cachedResult = cacheService.getCachedSolution(dungeonGrid);
+            if (cachedResult.isPresent()) {
+                logger.info("Found cached solution for dungeon ({}x{})", 
+                           dungeonGrid.length, dungeonGrid[0].length);
+                return cachedResult.get();
+            }
+            
+            // No cached solution, solve using the algorithm
+            logger.debug("No cached solution found, computing new solution");
             DungeonSolveResult result = dungeonSolver.solve(dungeonGrid);
             
-            // Log the result for monitoring
+            // Log and cache the result
             switch (result) {
-                case DungeonSolveResult.Success success -> 
+                case DungeonSolveResult.Success success -> {
                     logger.debug("Solver found solution with minimum HP: {}", success.minHp());
-                case DungeonSolveResult.Failure failure -> 
+                    // Cache the successful solution for future use
+                    cacheService.cacheSolution(dungeonGrid, success);
+                    logger.debug("Solution cached for future lookups");
+                }
+                case DungeonSolveResult.Failure failure -> {
                     logger.debug("Solver failed: {} ({})", failure.reason(), failure.errorCode());
+                    // We could cache failures too, but for now we'll only cache successes
+                    // to avoid caching temporary issues like invalid input
+                }
             }
             
             return result;
