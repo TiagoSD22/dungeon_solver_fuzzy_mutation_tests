@@ -1,0 +1,72 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: dungeon-solver
+      changes:
+        - createTable:
+            tableName: dungeon_solutions
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: input_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: path_blob
+                  type: bytea
+                  constraints:
+                    nullable: false
+              - column:
+                  name: min_hp
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rows
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cols
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_dungeon_solutions_input_hash
+            tableName: dungeon_solutions
+            columns:
+              - column:
+                  name: input_hash
+            unique: true
+        - createIndex:
+            indexName: idx_dungeon_solutions_dimensions
+            tableName: dungeon_solutions
+            columns:
+              - column:
+                  name: rows
+              - column:
+                  name: cols
+        - createIndex:
+            indexName: idx_dungeon_solutions_min_hp
+            tableName: dungeon_solutions
+            columns:
+              - column:
+                  name: min_hp
+        - createIndex:
+            indexName: idx_dungeon_solutions_created_at
+            tableName: dungeon_solutions
+            columns:
+              - column:
+                  name: created_at
