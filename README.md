@@ -1,6 +1,6 @@
 # Dungeon Solver API 🏰⚔️
 
-A Java 23 Spring Boot REST API for solving dungeon traversal problems using object-oriented design and graph-based algorithms.
+A Java 23 Spring Boot REST API for solving dungeon traversal problems using object-oriented design and graph-based algorithms with a normalized database caching system.
 
 ## 🎯 Business Objective
 
@@ -107,24 +107,6 @@ curl -X POST http://localhost:8080/api/dungeon/solve \
   }'
 ```
 
-#### Example using Python
-
-```python
-import requests
-
-url = "http://localhost:8080/api/dungeon/solve"
-payload = {
-    "input": [
-        [-2, -3, 3],
-        [-5, -10, 1],
-        [10, 30, -5]
-    ]
-}
-
-response = requests.post(url, json=payload)
-print(response.json())
-```
-
 ### Health Check
 
 **GET** `/api/dungeon/health`
@@ -160,93 +142,6 @@ For dungeon `[[-2, -3, 3], [-5, -10, 1], [10, 30, -5]]`:
 2. Need health ≥ `1 - (-5) = 6` when entering
 3. Work backwards to calculate minimum health at each cell
 4. Source `(0,0)` requires minimum health of `7`
-
-## 🏗️ Architecture
-
-### Hexagonal Architecture (Ports & Adapters)
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Controllers   │───▶│    Services     │───▶│     Solvers     │
-│ (Infrastructure)│    │  (Application)  │    │    (Domain)     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                       │                       │
-        ▼                       ▼                       ▼
-   REST Endpoints          Business Logic         Algorithm Logic
-```
-
-### Package Structure
-
-```
-com.dungeon/
-├── controller/          # REST controllers (Infrastructure layer)
-├── service/            # Business services (Application layer)  
-├── solver/             # Algorithm implementations (Domain layer)
-├── model/              # Domain models (Records & Sealed classes)
-├── dto/                # Data Transfer Objects
-├── validation/         # Custom validators
-└── config/             # Configuration classes
-```
-
-### SOLID Principles Applied
-
-- **S**ingle Responsibility: Each class has one reason to change
-- **O**pen/Closed: Open for extension, closed for modification
-- **L**iskov Substitution: Implementations can be substituted
-- **I**nterface Segregation: Small, focused interfaces
-- **D**ependency Inversion: Depend on abstractions, not concretions
-
-## 🧪 Testing
-
-### Run Tests
-
-```bash
-# Run all tests
-./mvnw test
-
-# Run with coverage
-./mvnw test jacoco:report
-
-# View coverage report
-open target/site/jacoco/index.html
-```
-
-### Test Categories
-
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: API endpoint testing  
-- **Validation Tests**: Input validation testing
-- **Algorithm Tests**: Solver logic testing
-
-### Test Coverage
-
-The project maintains >90% test coverage across:
-- Model classes (Position, DungeonCell, Results)
-- Solver algorithms (Dynamic Programming)
-- Service layer (Business logic)
-- Controller layer (REST endpoints)
-- Validation logic (Custom validators)
-
-## 🐳 Docker Configuration
-
-### Multi-stage Dockerfile
-
-```dockerfile
-# Build stage
-FROM openjdk:23-jdk-slim AS build
-# ... build application
-
-# Runtime stage  
-FROM openjdk:23-jdk-slim
-# ... run application
-```
-
-### Docker Compose Features
-
-- **Health checks**: Automatic container health monitoring
-- **Volume mapping**: Persistent logs
-- **Network isolation**: Dedicated network for services
-- **Nginx proxy**: Production-ready reverse proxy setup
 
 ## 📊 Validation Rules
 
@@ -304,14 +199,6 @@ JAVA_OPTS=-Xmx512m -Xms256m --enable-preview
 - `/actuator/info` - Application info
 - `/actuator/metrics` - Performance metrics
 
-### Logging
-
-Structured logging with:
-- Request/response logging
-- Performance metrics
-- Error tracking
-- Debug information for troubleshooting
-
 ## 📈 Performance
 
 ### Benchmarks
@@ -328,60 +215,173 @@ For typical use cases:
 - Max heap: 512MB (configurable)
 - Per request: ~1KB additional memory
 
-## 🔐 Security Considerations
+## 🗄️ Database Architecture
 
-- **Input validation**: Comprehensive validation prevents malicious input
-- **Error handling**: No sensitive information in error responses
-- **CORS**: Configurable for production environments
-- **Rate limiting**: Can be added via Spring Security (not included)
+The system uses a **normalized relational database schema** with PostgreSQL to cache dungeon solutions efficiently. The design eliminates redundancy and provides fast lookups using Blake3 hash-based deduplication.
 
-## 🚀 Deployment
+### 📊 Database Schema
 
-### Production Checklist
+#### **dungeon** table
+Stores metadata about each unique dungeon configuration:
 
-- [ ] Configure CORS for specific origins
-- [ ] Set up proper logging aggregation
-- [ ] Configure health check endpoints
-- [ ] Set resource limits (CPU/Memory)
-- [ ] Enable HTTPS with reverse proxy
-- [ ] Set up monitoring and alerting
+| Column     | Type         | Constraints                    | Description                                    |
+|------------|--------------|--------------------------------|------------------------------------------------|
+| id         | UUID         | PRIMARY KEY, NOT NULL          | Unique identifier for the dungeon             |
+| hash_input | VARCHAR(64)  | NOT NULL, UNIQUE               | Blake3 hash of input for deduplication        |
+| rows       | INTEGER      | NOT NULL                       | Number of rows in the dungeon grid            |
+| cols       | INTEGER      | NOT NULL                       | Number of columns in the dungeon grid         |
+| created_at | TIMESTAMP    | NOT NULL                       | Record creation timestamp                      |
 
-### Scaling Considerations
+#### **cells** table
+Stores individual cell data for each dungeon:
 
-- **Stateless**: Each request is independent
-- **CPU bound**: Benefits from vertical scaling
-- **Cacheable**: Results can be cached for identical inputs
-- **Load balancer ready**: Multiple instances supported
+| Column     | Type    | Constraints                           | Description                                |
+|------------|---------|---------------------------------------|--------------------------------------------|
+| cell_id    | UUID    | PRIMARY KEY, NOT NULL                 | Unique identifier for the cell             |
+| dungeon_id | UUID    | NOT NULL, FK(dungeon.id)              | Reference to parent dungeon                |
+| row_index  | INTEGER | NOT NULL                              | Zero-based row position in grid            |
+| col_index  | INTEGER | NOT NULL                              | Zero-based column position in grid         |
+| value      | INTEGER | NOT NULL                              | Cell value (damage/healing/neutral)        |
 
-## 🤝 Contributing
+**Unique constraint**: `(dungeon_id, row_index, col_index)` - ensures one cell per position per dungeon
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes following the existing patterns
-4. Add tests for new functionality
-5. Ensure all tests pass (`./mvnw test`)
-6. Update documentation if needed
-7. Commit changes (`git commit -m 'Add amazing feature'`)
-8. Push to branch (`git push origin feature/amazing-feature`)
-9. Open a Pull Request
+#### **solution_paths** table
+Stores the optimal solution path for each dungeon:
 
-## 📄 License
+| Column     | Type    | Constraints                           | Description                                |
+|------------|---------|---------------------------------------|--------------------------------------------|
+| dungeon_id | UUID    | NOT NULL, FK(dungeon.id)              | Reference to dungeon (composite PK)       |
+| cell_id    | UUID    | NOT NULL, FK(cells.cell_id)           | Reference to cell in path (composite PK)  |
+| position   | INTEGER | NOT NULL                              | Order of cell in solution path (0-based)  |
+| min_hp     | INTEGER | NOT NULL                              | Minimum HP required to solve dungeon      |
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**Composite Primary Key**: `(dungeon_id, cell_id)`
 
-## 📞 Support
+### 🔗 Entity Relationships
 
-- **Documentation**: [Swagger UI](http://localhost:8080/swagger-ui.html)
-- **Issues**: [GitHub Issues](https://github.com/your-repo/dungeon-solver/issues)
-- **Email**: support@dungeonsolverapi.com
+```
+dungeon (1) ──────────── (N) cells
+    │                        │
+    │                        │
+    └── (N) solution_paths ──┘
+```
 
-## 🙏 Acknowledgments
+- **One-to-Many**: `dungeon` → `cells` (one dungeon has many cells)
+- **One-to-Many**: `dungeon` → `solution_paths` (one dungeon has many path steps)
+- **Many-to-One**: `solution_paths` → `cells` (each path step references a specific cell)
 
-- Spring Boot team for the excellent framework
-- OpenAPI/Swagger for documentation standards
-- Java community for Java 23 preview features
-- Dynamic programming algorithm inspiration from classic CS problems
+### 📈 Performance Indexes
 
----
+| Index Name                  | Table          | Columns                            | Purpose                              |
+|-----------------------------|----------------|------------------------------------|--------------------------------------|
+| idx_dungeon_hash_input      | dungeon        | hash_input (UNIQUE)                | Fast duplicate detection             |
+| idx_cells_dungeon_id        | cells          | dungeon_id                         | Efficient cell queries by dungeon   |
+| idx_cells_position          | cells          | dungeon_id, row_index, col_index   | Fast cell position lookups          |
+| idx_solution_paths_dungeon  | solution_paths | dungeon_id, position               | Ordered path retrieval               |
 
-**Built with ❤️ using Java 23, Spring Boot, and modern software engineering practices.**
+## 🔄 Input Mapping Process
+
+### 1. **Input Processing**
+```json
+{
+  "dungeon": [
+    [-3, 5],
+    [1, -4]
+  ]
+}
+```
+
+### 2. **Hash Generation**
+- Blake3 hash computed from normalized input: `a1b2c3d4e5f6...` (64 chars)
+- Used for deduplication check in database
+
+### 3. **Entity Creation Example**
+
+#### Dungeon Entity
+```sql
+INSERT INTO dungeon (id, hash_input, rows, cols, created_at) 
+VALUES ('550e8400-e29b-41d4-a716-446655440000', 'a1b2c3d4e5f6...', 2, 2, NOW());
+```
+
+#### Cells Entities
+```sql
+INSERT INTO cells (cell_id, dungeon_id, row_index, col_index, value) VALUES
+('cell-1-uuid', '550e8400-e29b-41d4-a716-446655440000', 0, 0, -3),
+('cell-2-uuid', '550e8400-e29b-41d4-a716-446655440000', 0, 1, 5),
+('cell-3-uuid', '550e8400-e29b-41d4-a716-446655440000', 1, 0, 1),
+('cell-4-uuid', '550e8400-e29b-41d4-a716-446655440000', 1, 1, -4);
+```
+
+#### Solution Path Entities
+For optimal path: `(0,0) → (0,1) → (1,1)` with `minHp = 7`
+```sql
+INSERT INTO solution_paths (dungeon_id, cell_id, position, min_hp) VALUES
+('550e8400-e29b-41d4-a716-446655440000', 'cell-1-uuid', 0, 7),
+('550e8400-e29b-41d4-a716-446655440000', 'cell-2-uuid', 1, 7),
+('550e8400-e29b-41d4-a716-446655440000', 'cell-4-uuid', 2, 7);
+```
+
+## 🎯 Cache Read Process
+
+### 1. **Hash Lookup**
+```sql
+SELECT id, rows, cols FROM dungeon WHERE hash_input = ?;
+```
+
+### 2. **Solution Path Retrieval**
+```sql
+SELECT sp.position, sp.min_hp, c.row_index, c.col_index, c.value
+FROM solution_paths sp
+JOIN cells c ON sp.cell_id = c.cell_id
+WHERE sp.dungeon_id = ?
+ORDER BY sp.position ASC;
+```
+
+### 3. **Output Mapping**
+The database mapper (`DungeonDatabaseMapper`) converts the ordered result set back to:
+```java
+DungeonSolveResult.Success(
+    minHp = 7,
+    path = List.of(
+        new Position(0, 0),
+        new Position(0, 1), 
+        new Position(1, 1)
+    )
+)
+```
+
+## 📊 Data Flow Example
+
+### Input Dungeon
+```
+Grid:  [[-3,  5],
+        [ 1, -4]]
+```
+
+### Database Storage
+| Table | Record Example |
+|-------|----------------|
+| **dungeon** | `id: uuid-1, hash: abc123..., rows: 2, cols: 2` |
+| **cells** | `(0,0) → -3`, `(0,1) → 5`, `(1,0) → 1`, `(1,1) → -4` |
+| **solution_paths** | `pos:0 → (0,0)`, `pos:1 → (0,1)`, `pos:2 → (1,1)` |
+
+### Cached Output
+```json
+{
+  "minHp": 7,
+  "path": [
+    {"row": 0, "col": 0},
+    {"row": 0, "col": 1},
+    {"row": 1, "col": 1}
+  ]
+}
+```
+
+## 🚀 Benefits of Normalized Design
+
+- **🔍 Deduplication**: Blake3 hash prevents storing identical dungeons
+- **📈 Scalability**: Efficient storage for large dungeons with sparse solution paths
+- **⚡ Performance**: Optimized indexes for fast lookups and path reconstruction
+- **🔧 Maintainability**: Clear separation of concerns with normalized relationships
+- **💾 Storage Efficiency**: No redundant path encoding - direct cell references
+
