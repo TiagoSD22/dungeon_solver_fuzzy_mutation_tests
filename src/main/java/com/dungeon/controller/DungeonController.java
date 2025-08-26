@@ -5,6 +5,7 @@ import com.dungeon.dto.DungeonResponse;
 import com.dungeon.dto.ErrorResponse;
 import com.dungeon.service.DungeonService;
 import com.dungeon.service.DungeonSolvingException;
+import com.dungeon.service.DungeonCacheService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -41,15 +42,18 @@ public class DungeonController {
     private static final Logger logger = LoggerFactory.getLogger(DungeonController.class);
     
     private final DungeonService dungeonService;
+    private final DungeonCacheService cacheService;
     
     /**
      * Constructor injection for dependency inversion.
      * 
      * @param dungeonService the service to handle dungeon solving logic
+     * @param cacheService the service to handle cache operations
      */
     @Autowired
-    public DungeonController(DungeonService dungeonService) {
+    public DungeonController(DungeonService dungeonService, DungeonCacheService cacheService) {
         this.dungeonService = dungeonService;
+        this.cacheService = cacheService;
     }
     
     /**
@@ -220,6 +224,117 @@ public class DungeonController {
         return ResponseEntity.ok(java.util.Map.of(
             "status", "UP",
             "service", "Dungeon Solver API",
+            "timestamp", Instant.now().toString()
+        ));
+    }
+    
+    /**
+     * Gets cache statistics.
+     */
+    @GetMapping("/cache/stats")
+    @Operation(
+        summary = "Get cache statistics",
+        description = "Returns statistics about cached dungeon solutions"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Cache statistics retrieved successfully",
+        content = @Content(
+            mediaType = "application/json",
+            examples = @ExampleObject(
+                value = """
+                    {
+                      "statistics": "Cache Statistics: 42 solutions cached, Avg MinHP: 15.75, Range: 1-50",
+                      "timestamp": "2024-01-15T10:30:00Z"
+                    }
+                    """
+            )
+        )
+    )
+    public ResponseEntity<?> getCacheStatistics() {
+        logger.info("Cache statistics requested");
+        
+        String stats = cacheService.getCacheStatistics();
+        
+        return ResponseEntity.ok(java.util.Map.of(
+            "statistics", stats,
+            "timestamp", Instant.now().toString()
+        ));
+    }
+    
+    /**
+     * Clears the solution cache.
+     */
+    @DeleteMapping("/cache")
+    @Operation(
+        summary = "Clear solution cache",
+        description = "Removes all cached dungeon solutions"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Cache cleared successfully",
+        content = @Content(
+            mediaType = "application/json",
+            examples = @ExampleObject(
+                value = """
+                    {
+                      "message": "Cache cleared successfully",
+                      "solutionsRemoved": 42,
+                      "timestamp": "2024-01-15T10:30:00Z"
+                    }
+                    """
+            )
+        )
+    )
+    public ResponseEntity<?> clearCache() {
+        logger.info("Cache clear requested");
+        
+        long removedCount = cacheService.clearCache();
+        
+        return ResponseEntity.ok(java.util.Map.of(
+            "message", "Cache cleared successfully",
+            "solutionsRemoved", removedCount,
+            "timestamp", Instant.now().toString()
+        ));
+    }
+    
+    /**
+     * Checks if a dungeon solution is cached.
+     */
+    @PostMapping("/cache/check")
+    @Operation(
+        summary = "Check if solution is cached",
+        description = "Checks whether a solution for the given dungeon is already cached"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Cache check completed",
+        content = @Content(
+            mediaType = "application/json",
+            examples = @ExampleObject(
+                value = """
+                    {
+                      "cached": true,
+                      "hash": "a1b2c3d4e5f6...",
+                      "timestamp": "2024-01-15T10:30:00Z"
+                    }
+                    """
+            )
+        )
+    )
+    public ResponseEntity<?> checkCached(
+        @Parameter(description = "Dungeon grid to check", required = true)
+        @Valid @RequestBody DungeonRequest request
+    ) {
+        logger.info("Cache check requested for {}x{} dungeon", 
+                   request.getRows(), request.getCols());
+        
+        boolean isCached = cacheService.isCached(request.input());
+        String hash = cacheService.computeInputHash(request.input());
+        
+        return ResponseEntity.ok(java.util.Map.of(
+            "cached", isCached,
+            "hash", hash,
             "timestamp", Instant.now().toString()
         ));
     }
