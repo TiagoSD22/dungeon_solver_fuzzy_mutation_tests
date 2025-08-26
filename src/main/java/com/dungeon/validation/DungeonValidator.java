@@ -12,12 +12,10 @@ public class DungeonValidator implements ConstraintValidator<ValidDungeon, int[]
     private static final int MIN_DIMENSION = 1;
     private static final int MAX_DIMENSION = 200;
     private static final int MIN_CELL_VALUE = -1000;
-    private static final int MAX_CELL_VALUE = 100;
+    private static final int MAX_CELL_VALUE = 1000;
     
     @Override
-    public void initialize(ValidDungeon constraintAnnotation) {
-        // No initialization needed
-    }
+    public void initialize(ValidDungeon constraintAnnotation) {}
     
     @Override
     public boolean isValid(int[][] dungeon, ConstraintValidatorContext context) {
@@ -82,58 +80,7 @@ public class DungeonValidator implements ConstraintValidator<ValidDungeon, int[]
             }
         }
         
-        // Additional validation: check if dungeon is theoretically solvable
-        if (!isTheoreticallySolvable(dungeon)) {
-            addConstraintViolation(context, "Dungeon appears to be unsolvable");
-            return false;
-        }
-        
         return true;
-    }
-    
-    /**
-     * Performs a basic check to see if the dungeon might be solvable.
-     * This is a heuristic check - the actual solver will do the definitive calculation.
-     * 
-     * @param dungeon the dungeon grid
-     * @return true if the dungeon might be solvable
-     */
-    private boolean isTheoreticallySolvable(int[][] dungeon) {
-        int rows = dungeon.length;
-        int cols = dungeon[0].length;
-        
-        // Simple heuristic: if there's a path of non-extreme negative values, it might be solvable
-        // This prevents obviously impossible dungeons from being processed
-        
-        // Check if the starting position would require more than reasonable HP
-        if (dungeon[0][0] <= -1000) {
-            return false;
-        }
-        
-        // Check if the ending position is accessible
-        if (dungeon[rows - 1][cols - 1] <= -1000) {
-            return false;
-        }
-        
-        // For very small dungeons, they're likely solvable
-        if (rows <= 2 && cols <= 2) {
-            return true;
-        }
-        
-        // Count extremely negative values - if too many, might be unsolvable
-        int extremeNegativeCount = 0;
-        int totalCells = rows * cols;
-        
-        for (int[] row : dungeon) {
-            for (int cell : row) {
-                if (cell <= -500) {
-                    extremeNegativeCount++;
-                }
-            }
-        }
-        
-        // If more than 80% of cells are extremely negative, likely unsolvable
-        return (double) extremeNegativeCount / totalCells < 0.8;
     }
     
     /**
