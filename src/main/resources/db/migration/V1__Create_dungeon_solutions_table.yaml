@@ -4,30 +4,20 @@ databaseChangeLog:
       author: dungeon-solver
       changes:
         - createTable:
-            tableName: dungeon_solutions
+            tableName: dungeon
             columns:
               - column:
                   name: id
-                  type: bigserial
+                  type: uuid
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: input_hash
+                  name: hash_input
                   type: varchar(64)
                   constraints:
                     nullable: false
                     unique: true
-              - column:
-                  name: path_blob
-                  type: bytea
-                  constraints:
-                    nullable: false
-              - column:
-                  name: min_hp
-                  type: integer
-                  constraints:
-                    nullable: false
               - column:
                   name: rows
                   type: integer
@@ -43,30 +33,119 @@ databaseChangeLog:
                   type: timestamp
                   constraints:
                     nullable: false
-        - createIndex:
-            indexName: idx_dungeon_solutions_input_hash
-            tableName: dungeon_solutions
+
+        - createTable:
+            tableName: cells
             columns:
               - column:
-                  name: input_hash
-            unique: true
-        - createIndex:
-            indexName: idx_dungeon_solutions_dimensions
-            tableName: dungeon_solutions
+                  name: cell_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: dungeon_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: row_index
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: col_index
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: value
+                  type: integer
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: solution_paths
             columns:
               - column:
-                  name: rows
+                  name: dungeon_id
+                  type: uuid
+                  constraints:
+                    nullable: false
               - column:
-                  name: cols
-        - createIndex:
-            indexName: idx_dungeon_solutions_min_hp
-            tableName: dungeon_solutions
-            columns:
+                  name: cell_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: position
+                  type: integer
+                  constraints:
+                    nullable: false
               - column:
                   name: min_hp
+                  type: integer
+                  constraints:
+                    nullable: false
+
+        # Foreign key constraints
+        - addForeignKeyConstraint:
+            baseTableName: cells
+            baseColumnNames: dungeon_id
+            constraintName: fk_cells_dungeon
+            referencedTableName: dungeon
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableName: solution_paths
+            baseColumnNames: dungeon_id
+            constraintName: fk_solution_paths_dungeon
+            referencedTableName: dungeon
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableName: solution_paths
+            baseColumnNames: cell_id
+            constraintName: fk_solution_paths_cell
+            referencedTableName: cells
+            referencedColumnNames: cell_id
+            onDelete: CASCADE
+
+        # Indexes for performance
         - createIndex:
-            indexName: idx_dungeon_solutions_created_at
-            tableName: dungeon_solutions
+            indexName: idx_dungeon_hash_input
+            tableName: dungeon
             columns:
               - column:
-                  name: created_at
+                  name: hash_input
+            unique: true
+
+        - createIndex:
+            indexName: idx_cells_dungeon_id
+            tableName: cells
+            columns:
+              - column:
+                  name: dungeon_id
+
+        - createIndex:
+            indexName: idx_cells_position
+            tableName: cells
+            columns:
+              - column:
+                  name: dungeon_id
+              - column:
+                  name: row_index
+              - column:
+                  name: col_index
+            unique: true
+
+        - createIndex:
+            indexName: idx_solution_paths_dungeon
+            tableName: solution_paths
+            columns:
+              - column:
+                  name: dungeon_id
+              - column:
+                  name: position
