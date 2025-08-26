@@ -219,7 +219,169 @@ For typical use cases:
 
 The system uses a **normalized relational database schema** with PostgreSQL to cache dungeon solutions efficiently. The design eliminates redundancy and provides fast lookups using Blake3 hash-based deduplication.
 
-### 📊 Database Schema
+## 🔄 Database Migrations with Liquibase
+
+The project uses **Liquibase** for database schema versioning and migration management. This ensures consistent database state across all environments and provides rollback capabilities for safe deployments.
+
+### 📋 Liquibase Configuration
+
+#### Maven Dependency
+```xml
+<dependency>
+    <groupId>org.liquibase</groupId>
+    <artifactId>liquibase-core</artifactId>
+</dependency>
+```
+
+#### Application Properties
+```properties
+# Main changelog file
+spring.liquibase.change-log=classpath:db/migration/db.changelog-master.yaml
+spring.liquibase.enabled=true
+spring.liquibase.drop-first=false
+
+# Logging
+logging.level.liquibase=INFO
+```
+
+### 📁 Migration File Structure
+
+```
+src/main/resources/db/migration/
+├── db.changelog-master.yaml          # Master changelog (entry point)
+└── V1__Create_dungeon_solutions_table.yaml  # Initial schema creation
+```
+
+#### Master Changelog (`db.changelog-master.yaml`)
+```yaml
+databaseChangeLog:
+  - include:
+      file: db/migration/V1__Create_dungeon_solutions_table.yaml
+```
+
+### 🚀 Migration Features
+
+#### **V1: Initial Schema Creation**
+The first migration creates the complete normalized database schema:
+
+- ✅ **dungeon** table with UUID primary key and Blake3 hash indexing
+- ✅ **cells** table with foreign key relationships and position indexing  
+- ✅ **solution_paths** table with composite primary key design
+- ✅ **Foreign key constraints** with CASCADE delete for data integrity
+- ✅ **Performance indexes** for fast lookups and queries
+
+#### **Automatic Execution**
+Liquibase migrations run automatically on application startup:
+
+1. **Startup Check**: Liquibase validates current database state
+2. **Schema Comparison**: Compares existing schema with changelog
+3. **Migration Execution**: Applies pending migrations in order
+4. **Tracking**: Records executed changesets in `DATABASECHANGELOG` table
+
+### 🛠️ Development Workflow
+
+#### **Adding New Migrations**
+
+1. **Create new changeset file**:
+   ```bash
+   # Example: V2__Add_performance_metrics_table.yaml
+   touch src/main/resources/db/migration/V2__Add_performance_metrics_table.yaml
+   ```
+
+2. **Define changeset**:
+   ```yaml
+   databaseChangeLog:
+     - changeSet:
+         id: 2
+         author: developer-name
+         changes:
+           - createTable:
+               tableName: performance_metrics
+               columns:
+                 - column:
+                     name: id
+                     type: uuid
+                     constraints:
+                       primaryKey: true
+   ```
+
+3. **Update master changelog**:
+   ```yaml
+   databaseChangeLog:
+     - include:
+         file: db/migration/V1__Create_dungeon_solutions_table.yaml
+     - include:
+         file: db/migration/V2__Add_performance_metrics_table.yaml
+   ```
+
+#### **Testing Migrations**
+
+```bash
+# Run with test profile (uses H2 in-memory database)
+./mvnw test
+
+# Run with Docker PostgreSQL
+docker-compose up -d postgres
+./mvnw spring-boot:run -Dspring.profiles.active=docker
+```
+
+### 📊 Migration Monitoring
+
+#### **Liquibase Tracking Tables**
+
+Liquibase automatically creates tracking tables:
+
+| Table | Purpose |
+|-------|---------|
+| `DATABASECHANGELOG` | Records executed changesets with checksums |
+| `DATABASECHANGELOGLOCK` | Prevents concurrent migrations |
+
+#### **Changeset Status Query**
+```sql
+SELECT id, author, filename, dateexecuted, orderexecuted 
+FROM DATABASECHANGELOG 
+ORDER BY orderexecuted;
+```
+
+### 🔒 Production Safety
+
+#### **Rollback Strategy**
+```yaml
+databaseChangeLog:
+  - changeSet:
+      id: example-rollback
+      author: developer
+      changes:
+        - createTable:
+            tableName: new_table
+      rollback:
+        - dropTable:
+            tableName: new_table
+```
+
+#### **Validation Checks**
+- ✅ **Checksum validation**: Prevents unauthorized schema changes
+- ✅ **Dependency ordering**: Ensures migrations run in correct sequence  
+- ✅ **Atomic transactions**: Each changeset runs in isolated transaction
+- ✅ **Lock mechanism**: Prevents concurrent migration execution
+
+### 🚀 Deployment Benefits
+
+- **🔄 Reproducible**: Same schema across all environments
+- **📈 Versioned**: Complete migration history with rollback capability
+- **🔒 Safe**: Atomic transactions with validation checks
+- **🚀 Automated**: Zero-downtime deployments with automatic migration
+- **📊 Auditable**: Complete trail of all schema changes
+
+### 🛡️ Best Practices Applied
+
+1. **Naming Convention**: `V{version}__{description}.yaml`
+2. **Incremental Changes**: Small, focused migrations
+3. **Rollback Scripts**: Always include rollback strategies
+4. **Environment Parity**: Same migrations across dev/staging/prod
+5. **Schema Validation**: Automatic checksum verification
+
+## 📊 Database Schema
 
 #### **dungeon** table
 Stores metadata about each unique dungeon configuration:
@@ -384,4 +546,3 @@ Grid:  [[-3,  5],
 - **⚡ Performance**: Optimized indexes for fast lookups and path reconstruction
 - **🔧 Maintainability**: Clear separation of concerns with normalized relationships
 - **💾 Storage Efficiency**: No redundant path encoding - direct cell references
-
