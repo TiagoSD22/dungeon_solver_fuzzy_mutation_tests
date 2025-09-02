@@ -58,6 +58,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Liquibase for Database Migrations -->
         <dependency>
             <groupId>org.liquibase</groupId>
