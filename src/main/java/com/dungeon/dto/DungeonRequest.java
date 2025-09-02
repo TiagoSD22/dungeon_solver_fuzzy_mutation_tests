@@ -1,6 +1,7 @@
 package com.dungeon.dto;
 
 import com.dungeon.validation.ValidDungeon;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.NotNull;
  * Contains validation annotations for input validation.
  */
 @Schema(description = "Request object containing the dungeon grid to solve")
+@JsonDeserialize(using = DungeonRequestDeserializer.class)
 public record DungeonRequest(
     @NotNull(message = "Input dungeon cannot be null")
     @ValidDungeon
