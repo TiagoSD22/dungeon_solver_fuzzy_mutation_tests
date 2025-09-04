@@ -51,17 +51,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
-        
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
 
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <!-- Liquibase for Database Migrations -->
@@ -117,6 +110,12 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>edu.berkeley.cs.jqf</groupId>
+                <artifactId>jqf-maven-plugin</artifactId>
+                <version>1.8</version>
             </plugin>
 
             <plugin>
