@@ -42,6 +42,29 @@ public class MatrixFuzzTest {
         }
     }
 
+    // Fuzz target that always sends schema-valid JSON: {"input": [[...], ...]}
+    @Fuzz
+    public void fuzzValidDungeonInput(@From(RectIntMatrixGenerator.class) int[][] grid) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "http://localhost:8080/api/dungeon/solve";
+
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonBody = mapper.writeValueAsString(Map.of("input", grid));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+            HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            System.out.println("Status: " + response.getStatusCode());
+            System.out.println("Response: " + response.getBody());
+        } catch (Exception e) {
+            System.out.println("Exception: " + e.getMessage());
+        }
+    }
+
     // Fuzz target that sends a full random JSON body (no fixed schema)
     @Fuzz
     public void fuzzRawJsonBody(@From(RandomJsonGenerator.class) String body) {
