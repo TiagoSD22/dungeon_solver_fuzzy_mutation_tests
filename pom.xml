@@ -110,12 +110,14 @@
             <groupId>edu.berkeley.cs.jqf</groupId>
             <artifactId>jqf-fuzz</artifactId>
             <version>2.1</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>edu.berkeley.cs.jqf</groupId>
             <artifactId>jqf-maven-plugin</artifactId>
             <version>2.1</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
